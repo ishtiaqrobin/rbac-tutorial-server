@@ -1,15 +1,3 @@
-export class AppError extends Error {
-  public statusCode: number;
-  public isOperational: boolean;
-
-  constructor(statusCode: number, message: string, isOperational = true, stack = '') {
-    super(message);
-    this.statusCode = statusCode;
-    this.isOperational = isOperational;
-    if (stack) {
-      this.stack = stack;
-    } else {
-      Error.captureStackTrace(this, this.constructor);
-    }
-  }
-}
+// Re-export AppError from errorHelpers for backward compatibility
+// Use errorHelpers/AppError directly in new code.
+export { default as AppError } from "../errorHelpers/AppError";

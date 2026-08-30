@@ -1,23 +1,48 @@
-import { Request, Response, NextFunction } from 'express';
-import { AppError } from '../utils/AppError';
+// ─────────────────────────────────────────────────────────────────────────────
+// middlewares/rbac.ts — Role-Based Access Control guards
+//
+// EDUCATIONAL NOTE
+// ─────────────────
+// Two independent guards protect API routes:
+//
+//   requireRole('admin', 'editor')
+//     → checks req.user.role against a whitelist of allowed role names.
+//     → Use for coarse-grained access (e.g. "only admins can manage users").
+//
+//   requirePermission('create_content', 'edit_content')
+//     → checks req.user.permissions[] for ALL listed permissions.
+//     → Use for fine-grained access (e.g. "editor can create but not delete").
+//
+// Both guards must be placed AFTER the `authenticate` middleware.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { NextFunction, Request, Response } from "express";
+import AppError from "../errorHelpers/AppError";
+import status from "http-status";
 
 /**
- * Require specific role(s) to access a route.
- * Example: requireRole('admin') or requireRole('admin', 'editor')
+ * requireRole(...roles)
+ *
+ * Allows access only if req.user.role matches one of the provided roles.
+ *
+ * @example
+ *   router.delete('/:id', authenticate, requireRole('admin'), userController.deleteUser)
  */
 export const requireRole = (...allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return next(new AppError(401, 'Authentication required.'));
+      return next(new AppError(status.UNAUTHORIZED, "Authentication required."));
     }
 
-    const hasRole = allowedRoles.includes(req.user.role.toLowerCase());
+    const userRole = req.user.role.toLowerCase();
+    const hasRole = allowedRoles.map((r) => r.toLowerCase()).includes(userRole);
+
     if (!hasRole) {
       return next(
         new AppError(
-          403,
-          `Access forbidden. Role '${req.user.role}' is not authorized for this resource.`
-        )
+          status.FORBIDDEN,
+          `Access denied. Role '${req.user.role}' is not authorized to perform this action.`,
+        ),
       );
     }
 
@@ -26,24 +51,30 @@ export const requireRole = (...allowedRoles: string[]) => {
 };
 
 /**
- * Require specific permission(s) to access a route.
- * Example: requirePermission('create_content') or requirePermission('manage_users')
+ * requirePermission(...permissions)
+ *
+ * Allows access only if req.user.permissions contains ALL listed permissions.
+ *
+ * @example
+ *   router.post('/', authenticate, requirePermission('create_content'), contentController.create)
  */
 export const requirePermission = (...requiredPermissions: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return next(new AppError(401, 'Authentication required.'));
+      return next(new AppError(status.UNAUTHORIZED, "Authentication required."));
     }
 
-    const userPermissions = req.user.permissions || [];
-    const hasPermission = requiredPermissions.every((perm) => userPermissions.includes(perm));
+    const userPermissions = req.user.permissions ?? [];
+    const missing = requiredPermissions.filter(
+      (perm) => !userPermissions.includes(perm),
+    );
 
-    if (!hasPermission) {
+    if (missing.length > 0) {
       return next(
         new AppError(
-          403,
-          `Forbidden. Missing required permission: ${requiredPermissions.join(', ')}`
-        )
+          status.FORBIDDEN,
+          `Forbidden. Missing required permission(s): ${missing.join(", ")}`,
+        ),
       );
     }
 

@@ -1,11 +1,99 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// auth.prisma — Better-Auth required models
+//
+// Better-Auth manages its own Session, Account, and Verification tables.
+// The User model here is a CUSTOM user table (not Better-Auth's default
+// "user" table). We map it to "users" and link our custom RBAC fields.
+//
+// Better-Auth required tables:
+//   1. user          → managed by Better-Auth (via prismaAdapter)
+//   2. session       → tracks active browser sessions (HTTP-Only cookie)
+//   3. account       → OAuth/social provider account links
+//   4. verification  → email verification + OTP records
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── User ─────────────────────────────────────────────────────────────────────
+// Custom fields beyond Better-Auth's defaults are declared in additionalFields
+// inside lib/auth.ts and must match exactly here.
+model User {
+  id                 String   @id @default(uuid())
+  name               String
+  email              String   @unique
+  emailVerified      Boolean  @default(false)
+  image              String?
+  // ── Custom RBAC / account-status fields ───────────────────────────────────
+  roleId             Int      @default(2) @map("role_id") // FK → Role (2 = viewer by default)
+  isActive           Boolean  @default(true)
+  needPasswordChange Boolean  @default(false)
+  isDeleted          Boolean  @default(false)
+  deletedAt          DateTime?
+  isBanned           Boolean  @default(false)
+  isReviewed         Boolean  @default(false)
+  reviewId           String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // ── Better-Auth relations ─────────────────────────────────────────────────
+  sessions      Session[]
+  accounts      Account[]
+
+  // ── RBAC relations ────────────────────────────────────────────────────────
+  role     Role      @relation(fields: [roleId], references: [id])
+  contents Content[]
+
+  @@map("users")
+}
+
+// ── Session ───────────────────────────────────────────────────────────────────
+// Required by Better-Auth. Stores the session token in the database so the
+// server can validate it on every request (via betterAuth.api.getSession).
 model Session {
-    id        String   @id @default(cuid())
-    userId    Int      @map("user_id")
-    token     String   @unique
-    expiresAt DateTime @map("expires_at")
-    createdAt DateTime @default(now()) @map("created_at")
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
 
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@map("sessions")
+  @@map("sessions")
+}
+
+// ── Account ───────────────────────────────────────────────────────────────────
+// Required by Better-Auth for OAuth / credential provider linking.
+// Stores hashed password when using email+password provider.
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("accounts")
+}
+
+// ── Verification ──────────────────────────────────────────────────────────────
+// Required by Better-Auth for email-verification tokens and OTP codes.
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@map("verifications")
 }

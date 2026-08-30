@@ -1,37 +1,39 @@
-import { Request, Response } from 'express';
-import { catchAsync } from '../../utils/catchAsync';
-import { sendResponse } from '../../utils/sendResponse';
-import { userService } from './user.service';
+import { Request, Response } from "express";
+import { catchAsync } from "../../utils/catchAsync";
+import { sendResponse } from "../../utils/sendResponse";
+import { userService } from "./user.service";
+import status from "http-status";
 
 const getAllUsers = catchAsync(async (req: Request, res: Response) => {
   const users = await userService.getAllUsers();
   sendResponse(res, {
-    statusCode: 200,
+    statusCode: status.OK,
     success: true,
-    message: 'User list retrieved successfully',
+    message: "User list retrieved successfully",
     data: { users },
   });
 });
 
 const updateUserRole = catchAsync(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.id, 10);
-  const { role_id } = req.body;
-  const user = await userService.assignUserRole(userId, role_id);
+  const userId = req.params.id; // string UUID
+  const { roleId } = req.body;
+  const user = await userService.assignUserRole(userId, Number(roleId));
 
   sendResponse(res, {
-    statusCode: 200,
+    statusCode: status.OK,
     success: true,
-    message: 'User role updated successfully',
+    message: "User role updated successfully",
     data: { user },
   });
 });
 
-const deactivateUser = catchAsync(async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.id, 10);
-  const result = await userService.deactivateUser(userId);
+const toggleUserStatus = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.params.id;
+  const { isActive } = req.body;
+  const result = await userService.toggleUserStatus(userId, Boolean(isActive));
 
   sendResponse(res, {
-    statusCode: 200,
+    statusCode: status.OK,
     success: true,
     message: result.message,
   });
@@ -40,5 +42,5 @@ const deactivateUser = catchAsync(async (req: Request, res: Response) => {
 export const userController = {
   getAllUsers,
   updateUserRole,
-  deactivateUser,
+  toggleUserStatus,
 };

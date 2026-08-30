@@ -1,5 +1,6 @@
-import { prisma } from '../../lib/prisma';
-import { AppError } from '../../utils/AppError';
+import { prisma } from "../../lib/prisma";
+import AppError from "../../errorHelpers/AppError";
+import status from "http-status";
 
 class RoleService {
   async getAllRoles() {
@@ -29,7 +30,7 @@ class RoleService {
   async updateRolePermissions(roleId: number, permissionIds: number[]) {
     const role = await prisma.role.findUnique({ where: { id: roleId } });
     if (!role) {
-      throw new AppError(404, `Role with ID ${roleId} not found`);
+      throw new AppError(status.NOT_FOUND, `Role with ID ${roleId} not found`);
     }
 
     // Atomic transaction: Delete existing permissions for role, insert new ones

@@ -1,7 +1,13 @@
+// role.prisma — Role model for the custom RBAC system
+//
+// Each User has one Role. Each Role has many RolePermissions.
+// The Role.id is an Int so it can be stored as a foreign key in the
+// User.roleId column with a simple integer default (e.g. 2 = "viewer").
+
 model Role {
   id          Int      @id @default(autoincrement())
   name        String   @unique
-  description String
+  description String   @default("")
   createdAt   DateTime @default(now()) @map("created_at")
 
   users           User[]
@@ -9,4 +15,3 @@ model Role {
 
   @@map("roles")
 }
-

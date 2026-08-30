@@ -1,12 +1,20 @@
+// content.prisma — Content model for hands-on RBAC permission practice
+//
+// This module demonstrates how RBAC permissions gate API endpoints:
+//   POST   /api/v1/contents      → requires "create_content" permission
+//   PATCH  /api/v1/contents/:id  → requires "edit_content" permission
+//   DELETE /api/v1/contents/:id  → requires "delete_content" permission
+//   GET    /api/v1/contents      → any authenticated user
+
 model Content {
-    id        Int      @id @default(autoincrement())
-    title     String
-    body      String
-    authorId  Int      @map("author_id")
-    createdAt DateTime @default(now()) @map("created_at")
-    updatedAt DateTime @updatedAt @map("updated_at")
+  id        Int      @id @default(autoincrement())
+  title     String
+  body      String
+  authorId  String   @map("author_id")      // FK → User.id (String UUID)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-    author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-    @@map("contents")
+  @@map("contents")
 }
