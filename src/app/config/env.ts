@@ -11,6 +11,8 @@ interface EnvConfig {
   BETTER_AUTH_URL: string;
   JWT_SECRET: string;
   JWT_EXPIRES_IN: string;
+  ACCESS_TOKEN_SECRET: string;
+  ACCESS_TOKEN_EXPIRES_IN: string;
   REFRESH_TOKEN_SECRET: string;
   REFRESH_TOKEN_EXPIRES_IN: string;
   FRONTEND_URL: string;
@@ -25,6 +27,8 @@ const loadEnvVariables = (): EnvConfig => {
     "BETTER_AUTH_URL",
     "JWT_SECRET",
     "JWT_EXPIRES_IN",
+    "ACCESS_TOKEN_SECRET",
+    "ACCESS_TOKEN_EXPIRES_IN",
     "REFRESH_TOKEN_SECRET",
     "REFRESH_TOKEN_EXPIRES_IN",
     "FRONTEND_URL"
@@ -51,6 +55,8 @@ const loadEnvVariables = (): EnvConfig => {
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL as string,
     JWT_SECRET: process.env.JWT_SECRET as string,
     JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN as string,
+    ACCESS_TOKEN_SECRET: process.env.ACCESS_TOKEN_SECRET as string,
+    ACCESS_TOKEN_EXPIRES_IN: process.env.ACCESS_TOKEN_EXPIRES_IN as string,
     REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET as string,
     REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN as string,
     FRONTEND_URL: process.env.FRONTEND_URL as string,
