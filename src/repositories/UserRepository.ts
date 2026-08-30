@@ -60,8 +60,8 @@ class UserRepository {
    */
   async findAll(): Promise<UserType[]> {
     const result = await pool.query(
-      `SELECT u.id, u.username, u.email, u.is_active,
-              u.created_at, u.updated_at, r.name AS role
+      `SELECT u.id, u.username, u.email, u.role_id, u.is_active,
+              u.created_at, u.updated_at, r.name AS role, r.name AS role_name
        FROM users u
        JOIN roles r ON u.role_id = r.id
        ORDER BY u.created_at DESC`
