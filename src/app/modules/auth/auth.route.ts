@@ -6,19 +6,16 @@ import { auth as betterAuth } from "../../lib/auth";
 
 const router = Router();
 
-// ── Better-Auth native routes (mounted at /api/v1/auth/better-auth/*) ────────
-// Handles: sign-up, sign-in (via Better-Auth SDK), email verification, etc.
-// These are Better-Auth's built-in API endpoints.
+// ── Better-Auth native routes ────────────────────────────────────────────────
 router.all("/better-auth/*splat", toNodeHandler(betterAuth));
 
 // ── Custom auth routes ────────────────────────────────────────────────────────
-// POST /api/v1/auth/sign-in  → signIn via our controller (issues JWT cookies)
 router.post("/sign-in", authController.signIn);
+router.post("/login", authController.signIn); // Legacy alias
 
-// POST /api/v1/auth/sign-out → clear session + JWT cookies
 router.post("/sign-out", authController.signOut);
+router.post("/logout", authController.signOut); // Legacy alias
 
-// GET  /api/v1/auth/me       → get current user profile (JWT protected)
 router.get("/me", authenticate, authController.getMe);
 
 export const authRoutes = router;

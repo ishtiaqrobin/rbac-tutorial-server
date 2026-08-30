@@ -5,19 +5,15 @@
 // ─────────────────
 // This service orchestrates the complete sign-in flow:
 //
-//   1. Delegate email+password verification to Better-Auth
-//      (Better-Auth internally checks the `accounts` table's hashed password)
-//   2. Load the user's RBAC Role + Permissions from Prisma
-//   3. Issue our own JWT access token (short-lived, 1d) and refresh token (7d)
-//      via tokenUtils — these are set as HTTP-Only cookies
-//   4. Return user profile + tokens to the controller
-//
-// Why both Better-Auth sessions AND our own JWTs?
-//   - Better-Auth session  → used for browser navigation (SSR / Next.js pages)
-//   - Our JWT access token → used for API calls (fast, stateless, no DB hit)
+//   1. Find user by email in PostgreSQL via Prisma ORM
+//   2. Compare password hash against the credential account (stored in `accounts`)
+//   3. Load the user's RBAC Role + Granted Permissions
+//   4. Issue JWT access token (1d) and refresh token (7d) via tokenUtils
+//   5. Set HTTP-Only cookies and return user profile
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { Response } from "express";
+import bcrypt from "bcrypt";
 import { prisma } from "../../lib/prisma";
 import { auth as betterAuth } from "../../lib/auth";
 import { tokenUtils } from "../../utils/token";
@@ -56,32 +52,57 @@ const loadUserWithPermissions = async (userId: string) => {
 
 class AuthService {
   /**
-   * signIn — validate credentials via Better-Auth, then issue JWTs
-   *
-   * Better-Auth handles password verification internally.
-   * We then load RBAC data from Prisma and issue our own JWT pair.
+   * signIn — validate credentials, then issue JWTs & cookies
    */
   async signIn(
     email: string,
     password: string,
     res: Response,
-    headers: Record<string, string | string[] | undefined>,
+    _headers?: Record<string, string | string[] | undefined>,
   ) {
-    // Step 1: Verify credentials via Better-Auth API
-    // Better-Auth checks the accounts table for a hashed password match.
-    const baResult = await (betterAuth.api as any).signInEmailPassword({
-      body: { email, password },
-      headers: headers as any,
+    // 1. Find user by email with role, permissions, and credential account
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        role: {
+          include: {
+            rolePermissions: {
+              include: { permission: true },
+            },
+          },
+        },
+        accounts: true,
+      },
     });
 
-    if (!baResult?.user) {
+    if (!user || !user.isActive || user.isDeleted || user.isBanned) {
       throw new AppError(status.UNAUTHORIZED, "Invalid email or password.");
     }
 
-    // Step 2: Load RBAC role + permissions from our custom tables
-    const { user, permissions } = await loadUserWithPermissions(baResult.user.id);
+    // 2. Compare password against credential account
+    const credentialAccount = user.accounts.find(
+      (acc) => acc.providerId === "credential",
+    );
 
-    // Step 3: Build JWT payload
+    if (!credentialAccount || !credentialAccount.password) {
+      throw new AppError(status.UNAUTHORIZED, "Invalid email or password.");
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      credentialAccount.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new AppError(status.UNAUTHORIZED, "Invalid email or password.");
+    }
+
+    // 3. Extract permissions list
+    const permissions: string[] = user.role.rolePermissions.map(
+      (rp: any) => rp.permission.name,
+    );
+
+    // 4. Build JWT payload
     const jwtPayload = {
       userId: user.id,
       email: user.email,
@@ -91,7 +112,7 @@ class AuthService {
       permissions,
     };
 
-    // Step 4: Issue access token + refresh token → set as HTTP-Only cookies
+    // 5. Issue access token + refresh token → set as HTTP-Only cookies
     const accessToken = tokenUtils.getAccessToken(jwtPayload);
     const refreshToken = tokenUtils.getRefreshToken({ userId: user.id });
 
@@ -116,14 +137,12 @@ class AuthService {
    * signOut — clear Better-Auth session + JWT cookies
    */
   async signOut(res: Response, headers: Record<string, string | string[] | undefined>) {
-    // Tell Better-Auth to invalidate the server-side session
     try {
       await betterAuth.api.signOut({ headers: headers as any });
     } catch {
       // Session may already be expired — still clear cookies
     }
 
-    // Clear our JWT cookies
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
   }
