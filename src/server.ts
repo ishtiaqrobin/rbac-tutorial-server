@@ -1,30 +1,25 @@
-/**
- * server.ts — HTTP server bootstrap
- *
- * Loads environment variables, connects to PostgreSQL, and starts
- * listening for incoming requests.
- */
-
-import http from 'http';
-import dotenv from 'dotenv';
-import app from './app';
-import pool from './app/config/database';
-
-dotenv.config();
+import app from "./app";
+import { prisma } from "./app/lib/prisma";
 
 const PORT = process.env.PORT || 5000;
 
-const server = http.createServer(app);
-
-server.listen(PORT, async () => {
-  console.log(`[server] Express listening on http://localhost:${PORT}`);
-
-  // Verify the database connection on startup.
+async function main() {
   try {
-    await pool.query('SELECT 1');
-    console.log('[server] Database connection verified');
-  } catch (err) {
-    console.error('[server] ERROR: Could not connect to PostgreSQL', err);
+    await prisma.$connect();
+    console.log("Database connected successfully");
+
+    app.listen(PORT, () => {
+      console.log(
+        `RBAC Tutorial Backend is running on http://localhost:${PORT}`,
+      );
+    });
+  } catch (error) {
+    console.error("Error starting server:", error);
+    await prisma.$disconnect();
     process.exit(1);
   }
-});
+}
+
+main();
+
+export default app;

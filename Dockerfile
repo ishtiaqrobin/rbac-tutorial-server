@@ -1,29 +1,35 @@
+# Production Multi-Stage Dockerfile for RBAC Backend
+
+# Stage 1: Build
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies (including devDependencies for the build step)
 COPY package*.json ./
+COPY prisma ./prisma/
+
 RUN npm ci
 
-# Copy source and build
 COPY . .
+
+RUN npx prisma generate
 RUN npm run build
 
-# ─── Production stage ─
-FROM node:20-alpine
+# Stage 2: Runner
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Copy only production dependencies
+ENV NODE_ENV=production
+
 COPY package*.json ./
-RUN npm ci --omit=dev
+COPY prisma ./prisma/
 
-# Copy compiled output from the builder stage
+RUN npm ci --only=production
+
 COPY --from=builder /app/dist ./dist
-
-# Copy environment file
-COPY .env ./.env
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 EXPOSE 5000
 

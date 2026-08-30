@@ -1,55 +1,50 @@
-/**
- * app.ts — Express application factory
- *
- * EDUCATIONAL OVERVIEW
- * --------------------
- * This file sets up the Express application:
- *   1. Security middleware (helmet, cors)
- *   2. Body parser (express.json)
- *   3. Route mounting
- *   4. Central error handler
- *
- * It exports an `app` instance that `server.ts` (the HTTP server)
- * and the seed script can both import, allowing reuse in tests.
- */
-
-import express from 'express';
+import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import authRoutes from './app/routes/auth.routes';
-import userRoutes from './app/routes/user.routes';
-import roleRoutes from './app/routes/role.routes';
-import permissionRoutes from './app/routes/permission.routes';
+import { globalErrorHandler } from './app/middlewares/globalErrorHandler';
+import { IndexRoutes } from './app/routes';
 
-const app = express();
+const app: Application = express();
 
-// ─── Middleware ──────────────────────────────────────────────────────────
-app.use(helmet());                    // security headers
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-  credentials: true
-}));
-app.use(express.json());              // parse JSON request bodies
+// Security & Parsing Middlewares
+app.use(helmet());
+app.use(
+  cors({
+    origin: [
+      'http://localhost:3000',
+      process.env.FRONTEND_URL || 'http://localhost:3000',
+    ],
+    credentials: true,
+  })
+);
+app.use(cookieParser());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// ─── Routes ──────────────────────────────────────────────────────────────
-app.get('/', (_req, res) => {
-  res.json({ message: 'RBAC API is running. Use /api/auth/login to get started.' });
+// Root Health Check Endpoint
+app.get('/', (req: Request, res: Response) => {
+  res.status(200).json({
+    success: true,
+    message: '⚡ RBAC Tutorial Express Server is running smoothly!',
+    version: '1.0.0',
+  });
 });
 
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/roles', roleRoutes);
-app.use('/api/permissions', permissionRoutes);
+// API Routes Mounting (Support both /api/v1 and legacy /api paths)
+app.use('/api/v1', IndexRoutes);
+app.use('/api', IndexRoutes);
 
-// ─── 404 handler ─────────────────────────────────────────────────────────
-app.use((_req, res) => {
-  res.status(404).json({ message: 'Route not found' });
+// 404 Route Not Found Handler
+app.use((req: Request, res: Response, next: NextFunction) => {
+  res.status(404).json({
+    success: false,
+    statusCode: 404,
+    message: `Cannot ${req.method} ${req.originalUrl} — Route Not Found`,
+  });
 });
 
-// ─── Central error handler ───────────────────────────────────────────────
-app.use((err: any, _req: any, res: any, _next: any) => {
-  console.error('[error]', err);
-  res.status(500).json({ message: 'Internal server error' });
-});
+// Global Error Handler Middleware
+app.use(globalErrorHandler);
 
 export default app;
