@@ -1,0 +1,12 @@
+model Content {
+    id        Int      @id @default(autoincrement())
+    title     String
+    body      String
+    authorId  Int      @map("author_id")
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+    @@map("contents")
+}
