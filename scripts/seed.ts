@@ -19,8 +19,8 @@
  */
 
 import dotenv from 'dotenv';
-import pool from '../src/config/database';
-import { hashPassword } from '../src/utils/hash';
+import pool from '../src/app/config/database';
+import { hashPassword } from '../src/app/utils/hash';
 
 dotenv.config();
 

@@ -16,10 +16,10 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import authRoutes from './routes/auth.routes';
-import userRoutes from './routes/user.routes';
-import roleRoutes from './routes/role.routes';
-import permissionRoutes from './routes/permission.routes';
+import authRoutes from './app/routes/auth.routes';
+import userRoutes from './app/routes/user.routes';
+import roleRoutes from './app/routes/role.routes';
+import permissionRoutes from './app/routes/permission.routes';
 
 const app = express();
 

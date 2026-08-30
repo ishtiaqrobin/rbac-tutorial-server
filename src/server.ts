@@ -8,7 +8,7 @@
 import http from 'http';
 import dotenv from 'dotenv';
 import app from './app';
-import pool from './config/database';
+import pool from './app/config/database';
 
 dotenv.config();
 
