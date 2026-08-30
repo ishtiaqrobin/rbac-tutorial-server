@@ -109,7 +109,7 @@ class AuthService {
       name: user.name,
       roleId: user.roleId,
       role: user.role.name,
-      permissions,
+      permissions, 
     };
 
     // 5. Issue access token + refresh token → set as HTTP-Only cookies
