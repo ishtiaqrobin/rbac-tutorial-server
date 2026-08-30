@@ -8,7 +8,6 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
   try {
     let token: string | undefined;
 
-    // 1. Check HTTP-Only Cookie or Authorization Header
     if (req.cookies && req.cookies.auth_token) {
       token = req.cookies.auth_token;
     } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {

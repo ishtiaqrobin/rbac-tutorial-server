@@ -1,9 +1,8 @@
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
 import { env } from "../config/env";
-import { bearer, emailOTP } from "better-auth/plugins";
+import { bearer } from "better-auth/plugins";
 import { betterAuth } from "better-auth";
-import { UserStatus } from "../../generated/prisma";
 
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
@@ -37,11 +36,6 @@ export const auth = betterAuth({
         type: "string",
         required: true,
         defaultValue: "USER",
-      },
-      status: {
-        type: "string",
-        required: true,
-        defaultValue: UserStatus.ACTIVE,
       },
       needPasswordChange: {
         type: "boolean",
