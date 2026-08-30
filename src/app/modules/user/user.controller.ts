@@ -15,7 +15,7 @@ const getAllUsers = catchAsync(async (req: Request, res: Response) => {
 });
 
 const updateUserRole = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.params.id; // string UUID
+  const userId = req.params.id as string;
   const { roleId } = req.body;
   const user = await userService.assignUserRole(userId, Number(roleId));
 
@@ -28,7 +28,7 @@ const updateUserRole = catchAsync(async (req: Request, res: Response) => {
 });
 
 const toggleUserStatus = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.params.id;
+  const userId = req.params.id as string;
   const { isActive } = req.body;
   const result = await userService.toggleUserStatus(userId, Boolean(isActive));
 

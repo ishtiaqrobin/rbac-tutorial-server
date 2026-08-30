@@ -69,7 +69,7 @@ class AuthService {
   ) {
     // Step 1: Verify credentials via Better-Auth API
     // Better-Auth checks the accounts table for a hashed password match.
-    const baResult = await betterAuth.api.signInEmailPassword({
+    const baResult = await (betterAuth.api as any).signInEmailPassword({
       body: { email, password },
       headers: headers as any,
     });
