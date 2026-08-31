@@ -126,9 +126,8 @@ class AuthService {
     }
 
     // 4. Load the user's RBAC role + permissions from the database.
-    const { user, permissions } = await loadUserWithPermissions(
-      betterAuthUserId,
-    );
+    const { user, permissions } =
+      await loadUserWithPermissions(betterAuthUserId);
 
     // 5. Build JWT payload
     const jwtPayload = {

@@ -16,26 +16,26 @@
 // Custom fields beyond Better-Auth's defaults are declared in additionalFields
 // inside lib/auth.ts and must match exactly here.
 model User {
-  id                 String   @id @default(uuid())
+  id                 String    @id @default(uuid())
   name               String
-  email              String   @unique
-  emailVerified      Boolean  @default(false)
+  email              String    @unique
+  emailVerified      Boolean   @default(false)
   image              String?
   // ── Custom RBAC / account-status fields ───────────────────────────────────
-  roleId             Int      @default(2) @map("role_id") // FK → Role (2 = viewer by default)
-  isActive           Boolean  @default(true)
-  needPasswordChange Boolean  @default(false)
-  isDeleted          Boolean  @default(false)
+  roleId             Int       @default(2) @map("role_id") // FK → Role (2 = viewer by default)
+  isActive           Boolean   @default(true)
+  needPasswordChange Boolean   @default(false)
+  isDeleted          Boolean   @default(false)
   deletedAt          DateTime?
-  isBanned           Boolean  @default(false)
-  isReviewed         Boolean  @default(false)
+  isBanned           Boolean   @default(false)
+  isReviewed         Boolean   @default(false)
   reviewId           String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   // ── Better-Auth relations ─────────────────────────────────────────────────
-  sessions      Session[]
-  accounts      Account[]
+  sessions Session[]
+  accounts Account[]
 
   // ── RBAC relations ────────────────────────────────────────────────────────
   role     Role      @relation(fields: [roleId], references: [id])

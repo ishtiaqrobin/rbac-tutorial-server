@@ -30,11 +30,20 @@ async function main() {
 
   // ── 1. Permissions ─────────────────────────────────────────────────────────
   const permissionsData = [
-    { name: "manage_users",   description: "View, assign roles, and manage system users" },
-    { name: "create_content", description: "Create and publish new content items" },
-    { name: "edit_content",   description: "Modify and update existing content items" },
+    {
+      name: "manage_users",
+      description: "View, assign roles, and manage system users",
+    },
+    {
+      name: "create_content",
+      description: "Create and publish new content items",
+    },
+    {
+      name: "edit_content",
+      description: "Modify and update existing content items",
+    },
     { name: "delete_content", description: "Delete content items permanently" },
-    { name: "view_reports",   description: "View system analytics and reports" },
+    { name: "view_reports", description: "View system analytics and reports" },
   ];
 
   const permissionsMap: Record<string, number> = {};
@@ -50,8 +59,14 @@ async function main() {
 
   // ── 2. Roles ───────────────────────────────────────────────────────────────
   const rolesData = [
-    { name: "admin",  description: "System Administrator — full access to all resources" },
-    { name: "editor", description: "Content Editor — can create and edit content" },
+    {
+      name: "admin",
+      description: "System Administrator — full access to all resources",
+    },
+    {
+      name: "editor",
+      description: "Content Editor — can create and edit content",
+    },
     { name: "viewer", description: "Read-only Viewer — can only view reports" },
   ];
 
@@ -68,12 +83,20 @@ async function main() {
 
   // ── 3. Role-Permission mappings ────────────────────────────────────────────
   const rolePermissionAssignments: Record<string, string[]> = {
-    admin:  ["manage_users", "create_content", "edit_content", "delete_content", "view_reports"],
+    admin: [
+      "manage_users",
+      "create_content",
+      "edit_content",
+      "delete_content",
+      "view_reports",
+    ],
     editor: ["create_content", "edit_content", "view_reports"],
     viewer: ["view_reports"],
   };
 
-  for (const [roleName, permList] of Object.entries(rolePermissionAssignments)) {
+  for (const [roleName, permList] of Object.entries(
+    rolePermissionAssignments,
+  )) {
     const roleId = rolesMap[roleName];
     for (const permName of permList) {
       const permissionId = permissionsMap[permName];
@@ -90,9 +113,24 @@ async function main() {
   // Better-Auth stores passwords in the `accounts` table (credential provider).
   // We manually create both the `users` row and the matching `accounts` row.
   const seedUsers = [
-    { email: "admin@example.com",  name: "Admin User",  password: "Admin123!",  roleName: "admin"  },
-    { email: "editor@example.com", name: "Editor User", password: "Editor123!", roleName: "editor" },
-    { email: "viewer@example.com", name: "Viewer User", password: "Viewer123!", roleName: "viewer" },
+    {
+      email: "admin@example.com",
+      name: "Admin User",
+      password: "Admin123!",
+      roleName: "admin",
+    },
+    {
+      email: "editor@example.com",
+      name: "Editor User",
+      password: "Editor123!",
+      roleName: "editor",
+    },
+    {
+      email: "viewer@example.com",
+      name: "Viewer User",
+      password: "Viewer123!",
+      roleName: "viewer",
+    },
   ];
 
   const createdUserIds: Record<string, string> = {};
@@ -142,7 +180,9 @@ async function main() {
     }
   }
 
-  console.log("✅ Users seeded: admin@example.com, editor@example.com, viewer@example.com");
+  console.log(
+    "✅ Users seeded: admin@example.com, editor@example.com, viewer@example.com",
+  );
 
   // ── 5. Sample Content Items ────────────────────────────────────────────────
   const contentItems = [
@@ -164,7 +204,9 @@ async function main() {
   ];
 
   for (const item of contentItems) {
-    const existing = await prisma.content.findFirst({ where: { title: item.title } });
+    const existing = await prisma.content.findFirst({
+      where: { title: item.title },
+    });
     if (!existing) {
       await prisma.content.create({ data: item });
     }
@@ -174,8 +216,12 @@ async function main() {
   console.log("🎉 Seeding completed successfully!");
   console.log("\n📋 Test Credentials:");
   console.log("   admin@example.com  / Admin123!   → admin  (all permissions)");
-  console.log("   editor@example.com / Editor123!  → editor (create, edit, view_reports)");
-  console.log("   viewer@example.com / Viewer123!  → viewer (view_reports only)");
+  console.log(
+    "   editor@example.com / Editor123!  → editor (create, edit, view_reports)",
+  );
+  console.log(
+    "   viewer@example.com / Viewer123!  → viewer (view_reports only)",
+  );
 }
 
 main()
