@@ -5,15 +5,18 @@
 // ─────────────────
 // This service orchestrates the complete sign-in flow:
 //
-//   1. Find user by email in PostgreSQL via Prisma ORM
-//   2. Compare password hash against the credential account (stored in `accounts`)
-//   3. Load the user's RBAC Role + Granted Permissions
-//   4. Issue JWT access token (1d) and refresh token (7d) via tokenUtils
-//   5. Set HTTP-Only cookies and return user profile
+//   1. Delegate credential verification to Better-Auth (auth.api.signInEmail)
+//      — Better-Auth validates the password against the `accounts` table,
+//        creates a `Session` row, and returns a `Set-Cookie` header for the
+//        `better-auth.session_token` cookie.
+//   2. Forward that `Set-Cookie` header onto the Express response so the
+//      browser actually stores the HTTP-Only session cookie.
+//   3. Load the user's RBAC Role + Granted Permissions from Prisma.
+//   4. Issue JWT access token (1d) and refresh token (7d) via tokenUtils.
+//   5. Set HTTP-Only cookies and return user profile.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Response } from "express";
-import bcrypt from "bcrypt";
+import { Response as ExpressResponse } from "express";
 import { prisma } from "../../lib/prisma";
 import { auth as betterAuth } from "../../lib/auth";
 import { tokenUtils } from "../../utils/token";
@@ -50,69 +53,94 @@ const loadUserWithPermissions = async (userId: string) => {
   return { user, permissions };
 };
 
+// ── Helper: forward Better-Auth Set-Cookie headers to the Express response ──
+// When we call auth.api.signInEmail({ asResponse: true }) programmatically,
+// Better-Auth returns a WHATWG `Response` whose `headers` contain the
+// `Set-Cookie` for the `better-auth.session_token` cookie. We must copy those
+// onto `res` so the browser actually stores the HTTP-Only session cookie.
+const forwardSetCookieHeaders = (
+  res: ExpressResponse,
+  headers?: Headers | Record<string, string>,
+) => {
+  if (!headers) return;
+
+  if (headers instanceof Headers) {
+    const setCookies = headers.getSetCookie?.() ?? [];
+    for (const cookie of setCookies) {
+      res.append("Set-Cookie", cookie);
+    }
+    return;
+  }
+
+  // Fallback for plain-object headers
+  const setCookie = (headers as Record<string, string>)["set-cookie"];
+  if (setCookie) {
+    res.append("Set-Cookie", setCookie);
+  }
+};
+
 class AuthService {
   /**
-   * signIn — validate credentials, then issue JWTs & cookies
+   * signIn — validate credentials via Better-Auth, then issue JWTs & cookies
    */
   async signIn(
     email: string,
     password: string,
-    res: Response,
-    _headers?: Record<string, string | string[] | undefined>,
+    res: ExpressResponse,
+    headers?: Record<string, string | string[] | undefined>,
   ) {
-    // 1. Find user by email with role, permissions, and credential account
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        role: {
-          include: {
-            rolePermissions: {
-              include: { permission: true },
-            },
-          },
-        },
-        accounts: true,
-      },
-    });
-
-    if (!user || !user.isActive || user.isDeleted || user.isBanned) {
-      throw new AppError(status.UNAUTHORIZED, "Invalid email or password.");
+    // 1. Let Better-Auth verify credentials + create the session.
+    //    Using `asResponse: true` returns a WHATWG Response whose headers
+    //    contain the Set-Cookie for the HTTP-Only session cookie.
+    let betterAuthResponse: globalThis.Response;
+    try {
+      betterAuthResponse = await betterAuth.api.signInEmail({
+        body: { email, password },
+        headers: headers as any,
+        asResponse: true,
+      });
+    } catch (err: any) {
+      // Better-Auth throws APIError with a status + message on bad credentials
+      const statusCode = err?.status ?? status.UNAUTHORIZED;
+      const message =
+        err?.message === "Invalid email or password"
+          ? "Invalid email or password."
+          : err?.message || "Authentication failed.";
+      throw new AppError(statusCode, message);
     }
 
-    // 2. Compare password against credential account
-    const credentialAccount = user.accounts.find(
-      (acc) => acc.providerId === "credential",
-    );
+    // 2. Forward the Better-Auth session cookie to the browser.
+    forwardSetCookieHeaders(res, betterAuthResponse.headers);
 
-    if (!credentialAccount || !credentialAccount.password) {
-      throw new AppError(status.UNAUTHORIZED, "Invalid email or password.");
+    // 3. Parse the user from the Better-Auth response body.
+    let betterAuthBody: { user?: { id: string } };
+    try {
+      betterAuthBody = await betterAuthResponse.json();
+    } catch {
+      betterAuthBody = {};
     }
 
-    const isPasswordValid = await bcrypt.compare(
-      password,
-      credentialAccount.password,
-    );
-
-    if (!isPasswordValid) {
-      throw new AppError(status.UNAUTHORIZED, "Invalid email or password.");
+    const betterAuthUserId = betterAuthBody?.user?.id;
+    if (!betterAuthUserId) {
+      throw new AppError(status.UNAUTHORIZED, "Authentication failed.");
     }
 
-    // 3. Extract permissions list
-    const permissions: string[] = user.role.rolePermissions.map(
-      (rp: any) => rp.permission.name,
+    // 4. Load the user's RBAC role + permissions from the database.
+    const { user, permissions } = await loadUserWithPermissions(
+      betterAuthUserId,
     );
 
-    // 4. Build JWT payload
+    // 5. Build JWT payload
     const jwtPayload = {
       userId: user.id,
       email: user.email,
       name: user.name,
       roleId: user.roleId,
       role: user.role.name,
-      permissions, 
+      permissions,
     };
 
-    // 5. Issue access token + refresh token → set as HTTP-Only cookies
+    // 6. Issue access token + refresh token → set as HTTP-Only cookies
     const accessToken = tokenUtils.getAccessToken(jwtPayload);
     const refreshToken = tokenUtils.getRefreshToken({ userId: user.id });
 
@@ -136,9 +164,17 @@ class AuthService {
   /**
    * signOut — clear Better-Auth session + JWT cookies
    */
-  async signOut(res: Response, headers: Record<string, string | string[] | undefined>) {
+  async signOut(
+    res: ExpressResponse,
+    headers: Record<string, string | string[] | undefined>,
+  ) {
     try {
-      await betterAuth.api.signOut({ headers: headers as any });
+      const result = await betterAuth.api.signOut({
+        headers: headers as any,
+        asResponse: true,
+      });
+      // Forward the Set-Cookie that clears the Better-Auth session cookie
+      forwardSetCookieHeaders(res, result.headers);
     } catch {
       // Session may already be expired — still clear cookies
     }

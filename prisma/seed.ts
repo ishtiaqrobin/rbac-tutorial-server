@@ -132,6 +132,7 @@ async function main() {
           id: accountId,
           accountId: user.id,
           providerId: "credential",
+          issuer: "local:credential", // REQUIRED by Better-Auth v1.7+
           userId: user.id,
           password: hashedPassword,
           createdAt: now,

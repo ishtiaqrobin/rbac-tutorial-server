@@ -26,6 +26,7 @@
 import { betterAuth } from "better-auth";
 import { bearer } from "better-auth/plugins";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import bcrypt from "bcrypt";
 import { prisma } from "./prisma";
 import { env } from "../config/env";
 
@@ -56,6 +57,16 @@ export const auth = betterAuth({
     // For this learning app, email verification is DISABLED so we can test
     // quickly without an email server. Enable in production!
     requireEmailVerification: false,
+
+    // ── Password hashing ──────────────────────────────────────────────────
+    // Better-Auth defaults to scrypt, but our seed script hashes passwords
+    // with bcrypt. We override the hash/verify functions so Better-Auth can
+    // authenticate the seeded accounts (and any new ones we create).
+    password: {
+      hash: async (password: string) => bcrypt.hash(password, 12),
+      verify: async ({ hash, password }: { hash: string; password: string }) =>
+        bcrypt.compare(password, hash),
+    },
   },
 
   // ── Custom user fields (must match columns in prisma/schema/auth.prisma) ─
@@ -106,12 +117,14 @@ export const auth = betterAuth({
 
   // ── Cookie settings ────────────────────────────────────────────────────────
   advanced: {
-    useSecureCookies: false, // Set true in production (HTTPS)
+    // In production (HTTPS) set this to true. For local dev over http it must
+    // stay false or the browser will refuse to store the cookie.
+    useSecureCookies: env.NODE_ENV === "production",
     cookies: {
       sessionToken: {
         attributes: {
           sameSite: "lax",
-          secure: false, // Set true in production
+          secure: env.NODE_ENV === "production",
           httpOnly: true,
           path: "/",
         },

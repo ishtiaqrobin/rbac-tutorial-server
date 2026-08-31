@@ -65,11 +65,15 @@ model Session {
 // ── Account ───────────────────────────────────────────────────────────────────
 // Required by Better-Auth for OAuth / credential provider linking.
 // Stores hashed password when using email+password provider.
+//
+// `issuer` is REQUIRED by Better-Auth v1.7+ — it scopes account identity.
+// For credential accounts Better-Auth stores the value "local:credential".
 model Account {
   id                    String    @id
   accountId             String
   providerId            String
   userId                String
+  issuer                String    @default("local:credential")
   accessToken           String?
   refreshToken          String?
   idToken               String?
@@ -82,6 +86,7 @@ model Account {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([issuer, accountId])
   @@map("accounts")
 }
 

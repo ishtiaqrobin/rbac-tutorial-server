@@ -15,7 +15,6 @@
     "generate": "prisma generate",
     "db": "prisma db push",
     "studio": "prisma studio",
-    "seed:admin": "tsx src/scripts/seedAdmin.ts",
     "build": "prisma generate && tsup",
     "postinstall": "prisma generate"
   },
